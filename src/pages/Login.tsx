@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Building2, Lock, User, Eye, EyeOff } from 'lucide-react';
-import { DEMO_CREDENTIALS } from '@/types/auth';
+import { useUserManagement } from '@/contexts/UserManagementContext';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -14,6 +14,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login, isAuthenticated } = useAuth();
+  const { demoCredentials } = useUserManagement();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -149,7 +150,7 @@ const Login = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {DEMO_CREDENTIALS.map((cred) => (
+              {demoCredentials.map((cred) => (
                 <Button
                   key={cred.username}
                   variant="outline"

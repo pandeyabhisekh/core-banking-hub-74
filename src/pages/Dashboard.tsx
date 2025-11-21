@@ -1,3 +1,4 @@
+import { FormEvent, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -9,12 +10,62 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  DollarSign
+  DollarSign,
+  Megaphone
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { useAlerts } from '@/contexts/AlertContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertAudience, CreateAlertPayload, UserRole } from '@/types/auth';
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { alerts, createAlert } = useAlerts();
+  const [alertForm, setAlertForm] = useState<CreateAlertPayload>({
+    title: '',
+    message: '',
+    audience: 'everyone',
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const canBroadcast = user && ['super_admin', 'admin', 'head_department'].includes(user.role);
+  const requiresAudience = user && (user.role === 'super_admin' || user.role === 'admin');
+
+  const roleLabels: Record<UserRole, string> = {
+    super_admin: 'Super Admins',
+    admin: 'Admins',
+    head_department: 'Head Departments',
+    branch_manager: 'Branch Managers',
+    staff: 'Staff',
+  };
+
+  const myAlerts = useMemo(() => {
+    if (!user) return [];
+    return alerts.filter((alert) => alert.targetRoles.includes(user.role)).slice(0, 4);
+  }, [alerts, user]);
+
+  const handleAlertSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!user) return;
+    setIsSubmitting(true);
+    await createAlert(
+      {
+        title: alertForm.title,
+        message: alertForm.message,
+        audience: requiresAudience ? alertForm.audience : undefined,
+      },
+      user,
+    );
+    setAlertForm((prev) => ({
+      ...prev,
+      title: '',
+      message: '',
+    }));
+    setIsSubmitting(false);
+  };
 
   // Role-specific dashboard stats
   const getDashboardStats = () => {
@@ -61,6 +112,14 @@ const Dashboard = () => {
 
   const stats = getDashboardStats();
 
+  const audienceOptions: { label: string; value: AlertAudience }[] = [
+    { label: 'Everyone', value: 'everyone' },
+    { label: 'Admins', value: 'admin' },
+    { label: 'Head Departments', value: 'head_department' },
+    { label: 'Branch Managers', value: 'branch_manager' },
+    { label: 'Staff', value: 'staff' },
+  ];
+
   const recentActivities = [
     { action: 'Account opened', customer: 'Rajesh Kumar', time: '10 mins ago', status: 'pending' },
     { action: 'Cash deposit', customer: 'Priya Sharma', time: '25 mins ago', status: 'approved' },
@@ -80,6 +139,108 @@ const Dashboard = () => {
             {user?.role.replace('_', ' ').toUpperCase()} • {user?.branchName || user?.departmentName || 'System'}
           </p>
         </div>
+
+        {canBroadcast && (
+          <Card className="border border-border/70 shadow-lg shadow-primary/10">
+            <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Megaphone className="h-5 w-5 text-primary" />
+                  Broadcast Alert
+                </CardTitle>
+                <CardDescription>Instantly notify the right teams across CBS.</CardDescription>
+              </div>
+              {requiresAudience && (
+                <div className="text-xs text-muted-foreground">
+                  Choose who should receive this alert.
+                </div>
+              )}
+            </CardHeader>
+            <CardContent>
+              <form className="space-y-4" onSubmit={handleAlertSubmit}>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Alert title</label>
+                    <Input
+                      placeholder="System maintenance window"
+                      value={alertForm.title}
+                      onChange={(event) =>
+                        setAlertForm((prev) => ({ ...prev, title: event.target.value }))
+                      }
+                      required
+                    />
+                  </div>
+                  {requiresAudience && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Audience</label>
+                      <Select
+                        value={alertForm.audience}
+                        onValueChange={(value) =>
+                          setAlertForm((prev) => ({ ...prev, audience: value as CreateAlertPayload['audience'] }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select audience" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {audienceOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value!}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Message</label>
+                  <Textarea
+                    placeholder="Detail the action, impact, or urgency..."
+                    value={alertForm.message}
+                    onChange={(event) =>
+                      setAlertForm((prev) => ({ ...prev, message: event.target.value }))
+                    }
+                    required
+                    rows={4}
+                  />
+                </div>
+                <Button type="submit" disabled={isSubmitting} className="w-full md:w-auto">
+                  {isSubmitting ? 'Sending...' : 'Send Alert'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {myAlerts.length > 0 && (
+          <Card className="border border-border/60 bg-gradient-to-br from-primary/10 via-background to-accent/10">
+            <CardHeader>
+              <CardTitle>Priority Alerts</CardTitle>
+              <CardDescription>Fresh notices routed to your role.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              {myAlerts.map((alert) => (
+                <div key={alert.id} className="rounded-xl border border-border/60 bg-card/80 p-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-base font-semibold">{alert.title}</h4>
+                    <Badge variant="outline">
+                      {alert.creatorRole.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">{alert.message}</p>
+                  <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{alert.creatorName}</span>
+                    <span>{new Date(alert.createdAt).toLocaleString()}</span>
+                  </div>
+                  <p className="mt-1 text-xs uppercase tracking-wide text-primary">
+                    Target: {alert.targetRoles.length === 5 ? 'Everyone' : alert.targetRoles.map((role) => roleLabels[role]).join(', ')}
+                  </p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
