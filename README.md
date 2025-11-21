@@ -1,73 +1,102 @@
-# Welcome to your Lovable project
+# CoreBank CBS - Core Banking System
 
-## Project info
+A comprehensive Core Banking System built with React, TypeScript, and modern web technologies.
 
-**URL**: https://lovable.dev/projects/8a027aa3-76b2-4923-b007-4ba570a7ab71
+## 🏦 Features
 
-## How can I edit this code?
+### Role-Based Access Control
+- **Super Admin**: System-wide management, user creation, audit logs
+- **Admin**: User management, branch oversight, MIS reports
+- **Head Department**: Transaction authorization, staff management, high-value approvals
+- **Branch Manager**: Branch-level operations, transaction approvals, teller oversight
+- **Staff**: Customer service, transaction initiation, account operations
 
-There are several ways of editing your application.
+### Core Modules
+- **Customer Information (CIF)**: Complete customer lifecycle management
+- **Account Management**: Savings, Current, FD, RD, Loan accounts
+- **Transaction Processing**: Cash, Cheque, NEFT/RTGS/IMPS, Forex
+- **Maker-Checker Workflow**: Dual authorization for critical operations
+- **User Management**: Role-based permissions and access control
+- **Reporting & MIS**: Comprehensive banking reports
+- **Audit Trails**: Complete transaction and system logs
 
-**Use Lovable**
+## 🚀 Demo Credentials
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/8a027aa3-76b2-4923-b007-4ba570a7ab71) and start prompting.
+Use these credentials to explore different role capabilities:
 
-Changes made via Lovable will be committed automatically to this repo.
+| Role | Username | Password |
+|------|----------|----------|
+| Super Admin | `superadmin` | `super@123` |
+| Admin | `admin` | `admin@123` |
+| Head Department | `headdept` | `head@123` |
+| Branch Manager | `manager` | `manager@123` |
+| Staff | `staff` | `staff@123` |
 
-**Use your preferred IDE**
+## 🛠 Technology Stack
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **Frontend**: React 18 + TypeScript
+- **Styling**: Tailwind CSS + shadcn/ui components
+- **State Management**: React Context + React Query
+- **Routing**: React Router v6
+- **Build Tool**: Vite
+- **UI Components**: Radix UI primitives
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 📦 Installation
 
-Follow these steps:
+```bash
+# Clone the repository
+git clone <repository-url>
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Install dependencies
+npm install
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## 🏗 Project Structure
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```
+src/
+├── components/          # Reusable UI components
+│   ├── ui/             # shadcn/ui components
+│   ├── AppSidebar.tsx  # Navigation sidebar
+│   ├── DashboardLayout.tsx
+│   └── ProtectedRoute.tsx
+├── contexts/           # React contexts
+│   └── AuthContext.tsx # Authentication state
+├── pages/             # Route pages
+│   ├── Login.tsx
+│   ├── Dashboard.tsx
+│   └── NotFound.tsx
+├── types/            # TypeScript definitions
+│   └── auth.ts
+└── App.tsx          # Main app component
+```
 
-**Use GitHub Codespaces**
+## 🔐 Security Features
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- JWT-based authentication (ready for backend integration)
+- Role-based route protection
+- Session management
+- Maker-checker approvals
+- Audit logging
 
-## What technologies are used for this project?
+## 🎯 Next Steps
 
-This project is built with:
+This is the frontend foundation. To build the complete CBS:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+1. **Backend Integration**: Connect to Django backend or use Lovable Cloud
+2. **Database**: PostgreSQL schema for all banking entities
+3. **Additional Modules**: 
+   - Customer pages (CIF management)
+   - Account opening workflows
+   - Transaction processing UI
+   - Approval workflows
+   - Reporting dashboards
+4. **Real Authentication**: Integrate with backend auth system
+5. **Business Logic**: Implement banking rules and validations
 
-## How can I deploy this project?
+## 📝 License
 
-Simply open [Lovable](https://lovable.dev/projects/8a027aa3-76b2-4923-b007-4ba570a7ab71) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+All rights reserved.
