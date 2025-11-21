@@ -1,9 +1,12 @@
+import { useEffect, useState } from 'react';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { Bell, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useAlerts } from '@/contexts/AlertContext';
+import { toast } from '@/components/ui/sonner';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -11,6 +14,51 @@ interface DashboardLayoutProps {
 
 export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { user } = useAuth();
+  const { alerts } = useAlerts();
+  const [seenAlertIds, setSeenAlertIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!user) {
+      setSeenAlertIds(new Set());
+      return;
+    }
+    const stored = localStorage.getItem(`cbs_seen_alerts_${user.id}`);
+    if (stored) {
+      try {
+        const parsed: string[] = JSON.parse(stored);
+        setSeenAlertIds(new Set(parsed));
+        return;
+      } catch {
+        setSeenAlertIds(new Set());
+      }
+    } else {
+      setSeenAlertIds(new Set());
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+    const storageKey = `cbs_seen_alerts_${user.id}`;
+    let updated = new Set(seenAlertIds);
+    let changed = false;
+    alerts
+      .filter((alert) => alert.targetRoles.includes(user.role))
+      .forEach((alert) => {
+        if (!seenAlertIds.has(alert.id)) {
+          toast(alert.title, {
+            description: alert.message,
+          });
+          updated = new Set(updated).add(alert.id);
+          changed = true;
+        }
+      });
+    if (changed) {
+      setSeenAlertIds(updated);
+      localStorage.setItem(storageKey, JSON.stringify(Array.from(updated)));
+    }
+  }, [alerts, seenAlertIds, user]);
 
   return (
     <SidebarProvider>

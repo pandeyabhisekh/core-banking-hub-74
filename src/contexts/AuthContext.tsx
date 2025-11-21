@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, UserRole, DEMO_CREDENTIALS, Permission } from '@/types/auth';
+import { User, UserRole, Permission } from '@/types/auth';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useUserManagement } from '@/contexts/UserManagementContext';
 
 interface AuthContextType {
   user: User | null;
@@ -15,36 +16,54 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
+  const { findUserByCredentials, users } = useUserManagement();
 
   useEffect(() => {
     // Check for stored session
     const storedUser = localStorage.getItem('cbs_user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        const parsedUser: User = JSON.parse(storedUser);
+        const latest = users.find((u) => u.id === parsedUser.id);
+        if (latest && !latest.isLocked) {
+          setUser(parsedUser);
+        } else {
+          localStorage.removeItem('cbs_user');
+        }
+      } catch {
+        localStorage.removeItem('cbs_user');
+      }
     }
-  }, []);
+  }, [users]);
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    // Find matching demo credential
-    const credential = DEMO_CREDENTIALS.find(
-      (c) => c.username === username && c.password === password
-    );
+    const managedUser = findUserByCredentials(username, password);
 
-    if (!credential) {
+    if (!managedUser) {
       toast.error('Invalid credentials');
+      return false;
+    }
+
+    if (managedUser.isLocked) {
+      toast.error('This user is locked. Contact an administrator.');
       return false;
     }
 
     // Create user object with role-based permissions
     const newUser: User = {
-      id: `user_${Date.now()}`,
-      username: credential.username,
-      email: `${credential.username}@cbs.bank`,
-      fullName: credential.fullName,
-      role: credential.role,
-      branchName: credential.branchName,
-      departmentName: credential.departmentName,
-      permissions: getRolePermissions(credential.role),
+      id: managedUser.id,
+      username: managedUser.username,
+      email: managedUser.email,
+      fullName: managedUser.fullName,
+      role: managedUser.role,
+      branchName: managedUser.branchName,
+      branchCode: managedUser.branchCode,
+      departmentName: managedUser.departmentName,
+      departments: managedUser.departments,
+      permissions: getRolePermissions(managedUser.role),
+      isLocked: managedUser.isLocked,
+      createdBy: managedUser.createdBy,
+      createdAt: managedUser.createdAt,
     };
 
     setUser(newUser);
@@ -59,6 +78,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     navigate('/login');
     toast.info('Logged out successfully');
   };
+  
+  useEffect(() => {
+    if (!user) return;
+    const latest = users.find((u) => u.id === user.id);
+    if (!latest || latest.isLocked) {
+      setUser(null);
+      localStorage.removeItem('cbs_user');
+      toast.error('Your user has been locked by an administrator.');
+      navigate('/login');
+    }
+  }, [users, user, navigate]);
 
   return (
     <AuthContext.Provider
