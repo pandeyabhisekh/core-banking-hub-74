@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,83 +8,75 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { ArrowUpRight, CreditCard, DollarSign, Shield, Sparkles } from "lucide-react";
+import { CreditCard, Sparkles } from "lucide-react";
+import { get, post } from '@/services/api.service';
+import { API_ENDPOINTS } from '@/config/api.config';
 
 type AccountType = "Savings" | "Current" | "NRI" | "Corporate";
 
 interface AccountRecord {
+  id: number;
   accountNo: string;
-  holder: string;
+  holder?: string;
   type: AccountType;
-  balance: string;
-  status: "Active" | "Dormant" | "Pending";
-  assignedTo: string;
+  balance?: string;
+  status: "active" | "closed" | "pending";
+  branch_id?: number;
 }
 
-const masterAccounts: AccountRecord[] = [
-  { accountNo: "CBS0001827", holder: "Ananya Sharma", type: "Savings", balance: "₹12,58,444", status: "Active", assignedTo: "Neha Singh" },
-  { accountNo: "CBS0001828", holder: "Rajesh Kumar", type: "Current", balance: "₹8,42,120", status: "Active", assignedTo: "Neha Singh" },
-  { accountNo: "CBS0001829", holder: "The Artisan Co.", type: "Corporate", balance: "₹1,82,96,000", status: "Active", assignedTo: "Dev Sharma" },
-  { accountNo: "CBS0001830", holder: "Priya Patel", type: "NRI", balance: "₹32,17,500", status: "Pending", assignedTo: "Neha Singh" },
-];
+// removed static master accounts; will load from backend
 
 const Accounts = () => {
   const { user } = useAuth();
   const isStaff = user?.role === "staff";
-  const [newAccount, setNewAccount] = useState({ holder: "", type: "Savings" as AccountType, deposit: "" });
-  const [accounts, setAccounts] = useState<AccountRecord[]>(masterAccounts);
+  const [newAccount, setNewAccount] = useState({ customerId: '', type: "Savings" as AccountType });
+  const [accounts, setAccounts] = useState<AccountRecord[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const res = await get<any[]>(API_ENDPOINTS.ACCOUNTS.LIST);
+      if (res.success) {
+        const mapped: AccountRecord[] = (res.data || []).map((a: any) => ({
+          id: a.id,
+          accountNo: a.account_number,
+          type: a.account_type,
+          balance: a.balance,
+          status: a.status,
+          branch_id: a.branch_id,
+        }));
+        setAccounts(mapped);
+      }
+    };
+    load();
+  }, []);
 
   const visibleAccounts = useMemo(() => {
     if (!user) return [];
-    if (isStaff) {
-      return accounts.filter((acc) => acc.assignedTo === user.fullName);
-    }
-    if (user.role === "branch_manager") {
-      return accounts.filter((acc) => acc.assignedTo === "Neha Singh" || acc.assignedTo === "Dev Sharma");
-    }
+    if (user.branchId) return accounts.filter((acc) => String(acc.branch_id) === String(user.branchId));
     return accounts;
-  }, [accounts, user, isStaff]);
+  }, [accounts, user]);
 
-  const stats = useMemo(
-    () => [
-      {
-        title: "Portfolio Balance",
-        value: "₹2.35 Cr",
-        subtitle: "Across assigned customers",
-        icon: DollarSign,
-        accent: "from-primary/20 to-primary/5",
-      },
-      {
-        title: "Digital Conversions",
-        value: "62%",
-        subtitle: "Accounts sourced digitally",
-        icon: ArrowUpRight,
-        accent: "from-emerald-200/40 to-emerald-50",
-      },
-      {
-        title: "Compliance Score",
-        value: "99.2%",
-        subtitle: "KYC & AML adherence",
-        icon: Shield,
-        accent: "from-indigo-200/40 to-indigo-50",
-      },
-    ],
-    [],
-  );
+  const stats = useMemo(() => {
+    const total = visibleAccounts.length;
+    return [
+      { title: "Accounts", value: String(total), subtitle: "Total accounts in view" },
+    ];
+  }, [visibleAccounts]);
 
-  const handleOpenAccount = () => {
-    if (!newAccount.holder || !newAccount.deposit) return;
-    const paddedIndex = (accounts.length + 1827).toString().padStart(7, "0");
-    const account: AccountRecord = {
-      accountNo: `CBS${paddedIndex}`,
-      holder: newAccount.holder,
-      type: newAccount.type,
-      balance: `₹${Number(newAccount.deposit).toLocaleString("en-IN")}`,
-      status: "Pending",
-      assignedTo: user?.fullName ?? "Unassigned",
-    };
-    setAccounts((prev) => [account, ...prev]);
-    setNewAccount({ holder: "", type: "Savings", deposit: "" });
+  const handleOpenAccount = async () => {
+    if (!newAccount.customerId) return;
+    const res = await post<any>(API_ENDPOINTS.ACCOUNTS.CREATE, { customer_id: Number(newAccount.customerId), account_type: newAccount.type });
+    if (res.success && res.data) {
+      setAccounts((prev) => [{
+        id: res.data.id,
+        accountNo: res.data.account_number,
+        type: res.data.account_type,
+        balance: res.data.balance,
+        status: res.data.status,
+        branch_id: res.data.branch_id,
+      }, ...prev]);
+      setNewAccount({ customerId: '', type: 'Savings' });
+    }
   };
 
   return (
@@ -110,7 +102,6 @@ const Accounts = () => {
             <Card key={stat.title} className="overflow-hidden border border-transparent bg-gradient-to-br shadow-md shadow-primary/10">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                <stat.icon className="h-5 w-5 text-primary" />
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">{stat.value}</div>
@@ -178,12 +169,13 @@ const Accounts = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="holder">Customer Name</Label>
+                <Label htmlFor="customerId">Customer ID</Label>
                 <Input
-                  id="holder"
-                  placeholder="Customer full name"
-                  value={newAccount.holder}
-                  onChange={(event) => setNewAccount((prev) => ({ ...prev, holder: event.target.value }))}
+                  id="customerId"
+                  type="number"
+                  placeholder="123"
+                  value={newAccount.customerId}
+                  onChange={(event) => setNewAccount((prev) => ({ ...prev, customerId: event.target.value }))}
                 />
               </div>
               <div className="space-y-2">
@@ -203,18 +195,11 @@ const Accounts = () => {
                 </select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="deposit">Initial Deposit (₹)</Label>
-                <Input
-                  id="deposit"
-                  type="number"
-                  placeholder="250000"
-                  value={newAccount.deposit}
-                  onChange={(event) => setNewAccount((prev) => ({ ...prev, deposit: event.target.value }))}
-                />
+                {/* initial deposit input removed; handled by transaction service */}
               </div>
               <Button
                 className="w-full"
-                disabled={!newAccount.holder || !newAccount.deposit}
+                disabled={!newAccount.customerId}
                 onClick={handleOpenAccount}
               >
                 Submit for Authorization
